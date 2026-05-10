@@ -1,4 +1,5 @@
 import { hashPassword } from "@better-auth/utils/password";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(String(body.password));
 
-    const { company } = await prisma.$transaction(async (tx) => {
+    const { company } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.create({
         data: {
           name,
