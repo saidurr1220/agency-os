@@ -1,7 +1,13 @@
 import { hashPassword } from "@better-auth/utils/password";
-import type { Prisma } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+
+/** Interactive `$transaction` callback client (see Prisma `ITXClientDenyList`). */
+type InteractivePrismaClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$use" | "$extends"
+>;
 
 export async function POST(request: Request) {
   try {
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(String(body.password));
 
-    const { company } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const { company } = await prisma.$transaction(async (tx: InteractivePrismaClient) => {
       const user = await tx.user.create({
         data: {
           name,
