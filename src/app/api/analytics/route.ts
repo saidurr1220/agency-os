@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
+import type { TaskPriority, TaskStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/rbac";
+
+/** Prisma `groupBy` row shape when counting by status/priority */
+type StatusGroupRow = {
+  status: TaskStatus;
+  _count: { _all: number };
+};
+
+type PriorityGroupRow = {
+  priority: TaskPriority;
+  _count: { _all: number };
+};
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -210,10 +222,10 @@ export async function GET(request: Request) {
     }));
 
     const statusTotal = statusGroups.reduce(
-      (sum: number, g) => sum + g._count._all,
+      (sum: number, g: StatusGroupRow) => sum + g._count._all,
       0,
     );
-    const statusDistribution = statusGroups.map((g) => ({
+    const statusDistribution = statusGroups.map((g: StatusGroupRow) => ({
       status: g.status,
       count: g._count._all,
       percentage:
@@ -222,7 +234,7 @@ export async function GET(request: Request) {
           : 0,
     }));
 
-    const priorityDistribution = priorityGroups.map((g) => ({
+    const priorityDistribution = priorityGroups.map((g: PriorityGroupRow) => ({
       priority: g.priority,
       count: g._count._all,
     }));
@@ -278,7 +290,10 @@ export async function GET(request: Request) {
 
     const journalScores = journalsWeek
       .map((j) => j.productivityScore)
-      .filter((s): s is number => s != null && !Number.isNaN(s));
+      .filter(
+        (s: number | null | undefined): s is number =>
+          s != null && !Number.isNaN(s),
+      );
     const avgJournal =
       journalScores.length > 0
         ? Math.round(
