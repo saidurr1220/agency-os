@@ -1,13 +1,7 @@
 import { hashPassword } from "@better-auth/utils/password";
-import type { PrismaClient } from "@prisma/client";
+import type { Company } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-/** Interactive `$transaction` callback client (see Prisma `ITXClientDenyList`). */
-type InteractivePrismaClient = Omit<
-  PrismaClient,
-  "$connect" | "$disconnect" | "$on" | "$use" | "$extends"
->;
 
 export async function POST(request: Request) {
   try {
@@ -53,57 +47,59 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(String(body.password));
 
-    const { company } = await prisma.$transaction(async (tx: InteractivePrismaClient) => {
-      const user = await tx.user.create({
-        data: {
-          name,
-          email: normalizedEmail,
-          password: passwordHash,
-          systemRole: "USER",
-          companyRole: companyRole,
-        },
-      });
+    const { company } = await prisma.$transaction(
+      async (tx): Promise<{ company: Company }> => {
+        const user = await tx.user.create({
+          data: {
+            name,
+            email: normalizedEmail,
+            password: passwordHash,
+            systemRole: "USER",
+            companyRole: companyRole,
+          },
+        });
 
-      const company = await tx.company.create({
-        data: {
-          name: companyName,
-          slug: finalSlug,
-          email: companyEmail,
-          phone: phone || null,
-          website: website || null,
-          status: "PENDING_APPROVAL",
-          ownerId: user.id,
-        },
-      });
+        const company = await tx.company.create({
+          data: {
+            name: companyName,
+            slug: finalSlug,
+            email: companyEmail,
+            phone: phone || null,
+            website: website || null,
+            status: "PENDING_APPROVAL",
+            ownerId: user.id,
+          },
+        });
 
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          companyId: company.id,
-          companyRole: companyRole,
-        },
-      });
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            companyId: company.id,
+            companyRole: companyRole,
+          },
+        });
 
-      await tx.companyMember.create({
-        data: {
-          companyId: company.id,
-          userId: user.id,
-          role: companyRole,
-        },
-      });
+        await tx.companyMember.create({
+          data: {
+            companyId: company.id,
+            userId: user.id,
+            role: companyRole,
+          },
+        });
 
-      // Email/password sign-in uses Better Auth credential account + hashed password (not User.password alone).
-      await tx.account.create({
-        data: {
-          userId: user.id,
-          provider: "credential",
-          providerAccountId: user.id,
-          password: passwordHash,
-        },
-      });
+        // Email/password sign-in uses Better Auth credential account + hashed password (not User.password alone).
+        await tx.account.create({
+          data: {
+            userId: user.id,
+            provider: "credential",
+            providerAccountId: user.id,
+            password: passwordHash,
+          },
+        });
 
-      return { company };
-    });
+        return { company };
+      },
+    );
 
     return NextResponse.json({
       success: true,

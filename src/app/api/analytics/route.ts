@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { TaskPriority, TaskStatus } from "@/generated/prisma/enums";
+import type { TaskPriority, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/rbac";
 

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import type { CompanyRole, SystemRole } from "@/generated/prisma/client";
+import type { CompanyRole, SystemRole } from "@prisma/client";
 import { ORG_MANAGEMENT_ROLES } from "@/config/org-roles";
 
 export interface AuthUser {
