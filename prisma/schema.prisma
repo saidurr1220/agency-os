@@ -1,0 +1,590 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String    @id @default(cuid())
+  userId            String
+  type              String?
+  provider          String
+  providerAccountId String
+  password          String?
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  companyId  String
+  entityType String
+  entityId   String
+  action     String
+  details    Json?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
+
+model ClientData {
+  id        String         @id @default(cuid())
+  projectId String
+  key       String
+  value     String
+  type      CredentialType @default(OTHER)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("client_data")
+}
+
+model Company {
+  id                  String            @id @default(cuid())
+  name                String
+  slug                String            @unique
+  email               String?
+  phone               String?
+  website             String?
+  size                String?
+  logo                String?
+  description         String?
+  status              CompanyStatus     @default(PENDING_APPROVAL)
+  ownerId             String
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime @updatedAt
+  approvedBy          User?             @relation("companies_approvedByIdTousers", fields: [approvedById], references: [id])
+  owner               User              @relation("companies_ownerIdTousers", fields: [ownerId], references: [id])
+  members             CompanyMember[]
+  dailyReports        DailyReport[]
+  departments         Department[]
+  designations        Designation[]
+  invitations         Invitation[]
+  journals            Journal[]
+  performanceRecords  PerformanceRecord[]
+  projects            Project[]
+  tags                Tag[]
+  tasks               Task[]
+  users               User[]            @relation("users_companyIdTocompanies")
+
+  @@index([ownerId])
+  @@index([slug])
+  @@index([status])
+  @@map("companies")
+}
+
+model CompanyMember {
+  id        String      @id @default(cuid())
+  companyId String
+  userId    String
+  role      CompanyRole @default(EMPLOYEE)
+  joinedAt  DateTime    @default(now())
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@map("company_members")
+}
+
+model DailyReport {
+  id             String    @id @default(cuid())
+  userId         String
+  companyId      String
+  date           DateTime  @default(now())
+  summary        String
+  completedTasks String[]
+  pendingTasks   String[]
+  blockers       String[]
+  hoursSpent     Float?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime @updatedAt
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId, date])
+  @@index([companyId])
+  @@index([userId])
+  @@map("daily_reports")
+}
+
+model DeliveryRecord {
+  id             String   @id @default(cuid())
+  projectId      String
+  deliveredById  String
+  deliveredAt    DateTime @default(now())
+  finalValue     Float
+  extensionsUsed Int      @default(0)
+  notes          String?
+  createdAt      DateTime @default(now())
+  deliveredBy    User     @relation(fields: [deliveredById], references: [id])
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([deliveredById])
+  @@index([projectId])
+  @@map("delivery_records")
+}
+
+model Department {
+  id           String        @id @default(cuid())
+  name         String
+  companyId    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  designations Designation[]
+  projects     Project[]
+  users        User[]
+
+  @@unique([name, companyId])
+  @@map("departments")
+}
+
+model Designation {
+  id           String      @id @default(cuid())
+  title        String
+  departmentId String
+  companyId    String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department   Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([title, departmentId])
+  @@map("designations")
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  email       String
+  code        String           @unique
+  companyId   String
+  role        CompanyRole      @default(EMPLOYEE)
+  invitedById String
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy   User             @relation(fields: [invitedById], references: [id])
+
+  @@index([code])
+  @@index([email])
+  @@map("invitations")
+}
+
+model Journal {
+  id                String    @id @default(cuid())
+  userId            String
+  companyId         String
+  date              DateTime  @default(now())
+  summary           String
+  completedItems    String[]
+  blockers          String[]
+  tomorrowPlan      String[]
+  mood              Int?
+  productivityScore Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime @updatedAt
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId, date])
+  @@index([companyId])
+  @@index([userId])
+  @@map("journals")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  data      Json?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isRead])
+  @@index([userId])
+  @@map("notifications")
+}
+
+model PerformanceRecord {
+  id                String    @id @default(cuid())
+  userId            String
+  companyId         String
+  month             Int
+  year              Int
+  projectsCompleted Int       @default(0)
+  deliveryValue     Float     @default(0)
+  productivityScore Float     @default(0)
+  deadlineAdherence Float     @default(0)
+  activeDays        Int       @default(0)
+  totalHoursLogged  Float     @default(0)
+  ranking           Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime @updatedAt
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId, month, year])
+  @@index([companyId])
+  @@index([userId])
+  @@map("performance_records")
+}
+
+model ProjectAssignment {
+  id         String         @id @default(cuid())
+  projectId  String
+  userId     String
+  role       AssignmentRole @default(MEMBER)
+  assignedAt DateTime       @default(now())
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_assignments")
+}
+
+model ProjectExtension {
+  id           String   @id @default(cuid())
+  projectId    String
+  fromDate     DateTime
+  toDate       DateTime
+  reason       String
+  approvedById String?
+  createdAt    DateTime @default(now())
+  approvedBy   User?    @relation(fields: [approvedById], references: [id])
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_extensions")
+}
+
+model Project {
+  id                  String              @id @default(cuid())
+  name                String
+  description         String?
+  color               String              @default("#6366f1")
+  icon                String?
+  companyId           String
+  ownerId             String
+  departmentId        String?
+  isArchived          Boolean             @default(false)
+  clientName          String?
+  clientEmail         String?
+  platform            ProjectPlatform?
+  orderId             String?
+  orderValue          Float?
+  currency            String              @default("USD")
+  priority            TaskPriority        @default(MEDIUM)
+  projectStatus       ProjectStatus       @default(PENDING_REVIEW)
+  startDate           DateTime?
+  deliveryDate        DateTime?
+  estimatedDays       Int?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime @updatedAt
+  clientData          ClientData[]
+  deliveryRecords     DeliveryRecord[]
+  assignments         ProjectAssignment[]
+  extensions          ProjectExtension[]
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department          Department?         @relation(fields: [departmentId], references: [id])
+  owner               User                @relation(fields: [ownerId], references: [id])
+  tasks               Task[]
+
+  @@index([companyId])
+  @@index([departmentId])
+  @@index([ownerId])
+  @@index([projectStatus])
+  @@map("projects")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Tag {
+  id        String      @id @default(cuid())
+  name      String
+  color     String      @default("#6366f1")
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taskTags  TaskTag[]
+
+  @@unique([name, companyId])
+  @@map("tags")
+}
+
+model TaskAttachment {
+  id         String   @id @default(cuid())
+  taskId     String
+  fileName   String
+  fileSize   Int
+  fileType   String
+  url        String
+  uploaderId String
+  createdAt  DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_comments")
+}
+
+model TaskLog {
+  id             String   @id @default(cuid())
+  taskId         String
+  userId         String
+  content        String
+  progressChange Int?
+  timeSpent      Int?
+  createdAt      DateTime @default(now())
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_logs")
+}
+
+model TaskTag {
+  id     String @id @default(cuid())
+  taskId String
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tagId])
+  @@map("task_tags")
+}
+
+model Task {
+  id                String         @id @default(cuid())
+  title             String
+  description       String?
+  status            TaskStatus     @default(TODO)
+  priority          TaskPriority   @default(MEDIUM)
+  projectId         String?
+  companyId         String
+  assigneeId        String?
+  creatorId         String
+  dueDate           DateTime?
+  startDate         DateTime?
+  estimatedMinutes  Int?
+  actualMinutes     Int?
+  progress          Int            @default(0)
+  category          String?
+  position          Int            @default(0)
+  isArchived        Boolean        @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime @updatedAt
+  attachments       TaskAttachment[]
+  comments          TaskComment[]
+  logs              TaskLog[]
+  tags              TaskTag[]
+  assignee          User?          @relation("tasks_assigneeIdTousers", fields: [assigneeId], references: [id])
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator           User           @relation("tasks_creatorIdTousers", fields: [creatorId], references: [id], onDelete: Cascade)
+  project           Project?       @relation(fields: [projectId], references: [id])
+
+  @@index([assigneeId])
+  @@index([companyId])
+  @@index([creatorId])
+  @@index([dueDate])
+  @@index([projectId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model User {
+  id                        String            @id @default(cuid())
+  email                     String            @unique
+  emailVerified             Boolean           @default(false)
+  name                      String
+  password                  String?
+  image                     String?
+  avatar                    String?
+  phone                     String?
+  employeeId                String?
+  systemRole                SystemRole        @default(USER)
+  isActive                  Boolean           @default(true)
+  lastLoginAt               DateTime?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime @updatedAt
+  companyId                 String?
+  departmentId              String?
+  designationId             String?
+  reportingManagerId        String?
+  companyRole               CompanyRole       @default(EMPLOYEE)
+  joinedAt                  DateTime?
+  accounts                  Account[]
+  activityLogs              ActivityLog[]
+  approvedCompanies         Company[]         @relation("companies_approvedByIdTousers")
+  ownedCompanies            Company[]         @relation("companies_ownerIdTousers")
+  companyMembers            CompanyMember[]
+  dailyReports              DailyReport[]
+  deliveryRecords           DeliveryRecord[]
+  invitations               Invitation[]
+  journals                  Journal[]
+  notifications             Notification[]
+  performanceRecords        PerformanceRecord[]
+  projectAssignments        ProjectAssignment[]
+  projectExtensions         ProjectExtension[]
+  projects                  Project[]
+  sessions                  Session[]
+  taskComments              TaskComment[]
+  taskLogs                  TaskLog[]
+  assignedTasks             Task[]            @relation("tasks_assigneeIdTousers")
+  createdTasks              Task[]            @relation("tasks_creatorIdTousers")
+  companyRef                Company?          @relation("users_companyIdTocompanies", fields: [companyId], references: [id])
+  department                Department?       @relation(fields: [departmentId], references: [id])
+  designation               Designation?      @relation(fields: [designationId], references: [id])
+  reportingManager          User?             @relation("usersTousers", fields: [reportingManagerId], references: [id])
+  directReports             User[]            @relation("usersTousers")
+
+  @@index([companyId])
+  @@index([departmentId])
+  @@index([email])
+  @@map("users")
+}
+
+enum AssignmentRole {
+  LEADER
+  CO_LEADER
+  MEMBER
+}
+
+enum CompanyRole {
+  CHAIRMAN
+  BOARD_MEMBER
+  MANAGER
+  TEAM_LEADER
+  CO_LEADER
+  EMPLOYEE
+  HR
+  ADMIN
+}
+
+enum CompanyStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum CredentialType {
+  HOSTING
+  CPANEL
+  DOMAIN
+  FTP
+  DATABASE
+  API_KEY
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  TASK_OVERDUE
+  COMMENT_MENTION
+  PROJECT_ASSIGNED
+  PROJECT_EXTENSION
+  DAILY_REPORT_REMINDER
+  WORKSPACE_INVITE
+  SYSTEM
+}
+
+enum ProjectPlatform {
+  FIVERR
+  UPWORK
+  DIRECT
+  REFERRAL
+  OTHER
+}
+
+enum ProjectStatus {
+  PENDING_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_CLIENT
+  REVISION
+  QA_TESTING
+  DELIVERED
+  EXTENDED
+  ON_HOLD
+  CANCELLED
+}
+
+enum SystemRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  ON_HOLD
+}
