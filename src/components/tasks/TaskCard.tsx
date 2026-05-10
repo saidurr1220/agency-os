@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import {
   GripVertical,
   Clock,
@@ -14,21 +14,31 @@ import {
   AlertCircle,
   Pause,
   Eye,
-} from 'lucide-react';
-import { cn, formatDate, getPriorityColor, getStatusColor } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import type { Task, TaskStatus } from '@/types';
+} from "lucide-react";
+import { cn, formatDate, getPriorityColor, getStatusColor } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import type {
+  DraggableAttributes,
+  DraggableSyntheticListeners,
+} from "@dnd-kit/core";
+import type { Task, TaskStatus } from "@/types";
 
 interface TaskCardProps {
   task: Task;
   onStatusChange?: (taskId: string, status: TaskStatus) => void;
   onClick?: (task: Task) => void;
   isDragging?: boolean;
+  /** When set, grip acts as the drag handle (Kanban). */
+  dragListeners?: DraggableSyntheticListeners;
+  dragAttributes?: DraggableAttributes;
 }
 
-const statusIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+const statusIcons: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   TODO: Circle,
   IN_PROGRESS: ArrowRight,
   REVIEW: Eye,
@@ -36,13 +46,26 @@ const statusIcons: Record<string, React.ComponentType<{ className?: string }>> =
   ON_HOLD: Pause,
 };
 
-export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onStatusChange,
+  onClick,
+  isDragging,
+  dragListeners,
+  dragAttributes,
+}: TaskCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const StatusIcon = statusIcons[task.status] || Circle;
 
   const cycleStatus = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'ON_HOLD'];
+    const statuses: TaskStatus[] = [
+      "TODO",
+      "IN_PROGRESS",
+      "REVIEW",
+      "COMPLETED",
+      "ON_HOLD",
+    ];
     const currentIndex = statuses.indexOf(task.status);
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
     onStatusChange?.(task.id, nextStatus);
@@ -50,29 +73,43 @@ export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCard
 
   return (
     <motion.div
-      layout
+      layout={!dragListeners}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      whileHover={{ scale: 1.01 }}
+      whileHover={dragListeners ? undefined : { scale: 1.01 }}
       className={cn(
-        'group relative flex items-start gap-3 p-4 rounded-xl border bg-card transition-all duration-200 cursor-pointer',
-        isDragging && 'shadow-lg ring-2 ring-primary/20',
-        task.status === 'COMPLETED' && 'opacity-70'
+        "group relative flex items-start gap-3 p-4 rounded-xl border bg-card transition-all duration-200 cursor-pointer select-none",
+        isDragging && "shadow-lg ring-2 ring-primary/20",
+        task.status === "COMPLETED" && "opacity-70",
+        dragListeners && "touch-manipulation",
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick?.(task)}
     >
-      <div className="shrink-0 mt-0.5 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
-        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      <div
+        className={cn(
+          "shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground touch-none",
+          dragListeners
+            ? "opacity-60"
+            : "opacity-0 group-hover:opacity-100 transition-opacity",
+        )}
+        {...(dragListeners && dragAttributes
+          ? { ...dragListeners, ...dragAttributes }
+          : {})}
+        onClick={(e) => dragListeners && e.stopPropagation()}
+      >
+        <GripVertical className="w-4 h-4" />
       </div>
 
       <div className="shrink-0 mt-0.5" onClick={cycleStatus}>
         <StatusIcon
           className={cn(
-            'w-5 h-5 cursor-pointer transition-colors',
-            task.status === 'COMPLETED' ? 'text-green-500' : 'text-muted-foreground hover:text-primary'
+            "w-5 h-5 cursor-pointer transition-colors",
+            task.status === "COMPLETED"
+              ? "text-green-500"
+              : "text-muted-foreground hover:text-primary",
           )}
         />
       </div>
@@ -81,8 +118,9 @@ export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCard
         <div className="flex items-start justify-between gap-2">
           <h3
             className={cn(
-              'text-sm font-medium leading-tight',
-              task.status === 'COMPLETED' && 'line-through text-muted-foreground'
+              "text-sm font-medium leading-tight",
+              task.status === "COMPLETED" &&
+                "line-through text-muted-foreground",
             )}
           >
             {task.title}
@@ -90,7 +128,10 @@ export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCard
           <div className="flex items-center gap-1 shrink-0">
             <Badge
               variant="outline"
-              className={cn('text-[10px] px-1.5 py-0', getPriorityColor(task.priority))}
+              className={cn(
+                "text-[10px] px-1.5 py-0",
+                getPriorityColor(task.priority),
+              )}
             >
               {task.priority}
             </Badge>
@@ -106,9 +147,9 @@ export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCard
         <div className="flex items-center gap-3 mt-3">
           <Badge
             variant="secondary"
-            className={cn('text-[10px]', getStatusColor(task.status))}
+            className={cn("text-[10px]", getStatusColor(task.status))}
           >
-            {task.status.replace('_', ' ')}
+            {task.status.replace("_", " ")}
           </Badge>
 
           {task.dueDate && (
@@ -125,7 +166,7 @@ export function TaskCard({ task, onStatusChange, onClick, isDragging }: TaskCard
             </div>
           )}
 
-          {task.tags.length > 0 && (
+          {Array.isArray(task.tags) && task.tags.length > 0 && (
             <div className="flex items-center gap-1">
               <Tag className="w-3 h-3 text-muted-foreground" />
               {task.tags.slice(0, 2).map((tag) => (
