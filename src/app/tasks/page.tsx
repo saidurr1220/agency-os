@@ -32,8 +32,15 @@ import { useAppStore } from "@/store";
 import type { Task, TaskStatus, TaskPriority, ViewType } from "@/types";
 
 export default function TasksPage() {
-  const { tasks, addTask, updateTask, moveTask, fetchTasks, tasksError, clearTasksError } =
-    useAppStore();
+  const {
+    tasks,
+    addTask,
+    updateTask,
+    moveTask,
+    fetchTasks,
+    tasksError,
+    clearTasksError,
+  } = useAppStore();
   const [view, setView] = useState<ViewType>("LIST");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -66,8 +73,7 @@ export default function TasksPage() {
 
   const handleSubmit = async (data: Record<string, unknown>) => {
     if (editingTask) {
-      await updateTask(editingTask.id, data as Partial<Task>);
-      return true;
+      return await updateTask(editingTask.id, data as Partial<Task>);
     }
     const created = await addTask({
       ...data,

@@ -1,6 +1,113 @@
 import { NextResponse } from "next/server";
+import type { Prisma, TaskPriority, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, taskVisibilityScope } from "@/lib/rbac";
+
+const TASK_STATUSES: TaskStatus[] = [
+  "TODO",
+  "IN_PROGRESS",
+  "REVIEW",
+  "COMPLETED",
+  "ON_HOLD",
+];
+
+const TASK_PRIORITIES: TaskPriority[] = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+];
+
+/** Only allow real Prisma columns; normalize dates so empty strings don't break updates. */
+function buildTaskUpdateData(
+  body: Record<string, unknown>,
+): Prisma.TaskUncheckedUpdateInput {
+  const data: Prisma.TaskUncheckedUpdateInput = {};
+
+  if (typeof body.title === "string") {
+    data.title = body.title.trim();
+  }
+
+  if (body.description !== undefined) {
+    if (body.description === null || body.description === "") {
+      data.description = null;
+    } else {
+      data.description = String(body.description);
+    }
+  }
+
+  if (
+    typeof body.status === "string" &&
+    TASK_STATUSES.includes(body.status as TaskStatus)
+  ) {
+    data.status = body.status as TaskStatus;
+  }
+
+  if (
+    typeof body.priority === "string" &&
+    TASK_PRIORITIES.includes(body.priority as TaskPriority)
+  ) {
+    data.priority = body.priority as TaskPriority;
+  }
+
+  for (const key of ["dueDate", "startDate"] as const) {
+    if (!(key in body)) continue;
+    const v = body[key];
+    if (v === null || v === "") {
+      data[key] = null;
+    } else if (typeof v === "string") {
+      const d = new Date(v);
+      data[key] = Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+
+  if (body.estimatedMinutes !== undefined) {
+    if (body.estimatedMinutes === null || body.estimatedMinutes === "") {
+      data.estimatedMinutes = null;
+    } else {
+      const n = Number(body.estimatedMinutes);
+      data.estimatedMinutes = Number.isFinite(n) ? Math.floor(n) : null;
+    }
+  }
+
+  if (body.progress !== undefined) {
+    const n = Number(body.progress);
+    if (Number.isFinite(n)) {
+      data.progress = Math.min(100, Math.max(0, Math.round(n)));
+    }
+  }
+
+  if (body.category !== undefined) {
+    if (body.category === null || body.category === "") {
+      data.category = null;
+    } else {
+      data.category = String(body.category);
+    }
+  }
+
+  if (body.projectId !== undefined) {
+    if (body.projectId === null || body.projectId === "") {
+      data.projectId = null;
+    } else {
+      data.projectId = String(body.projectId);
+    }
+  }
+
+  if (body.assigneeId !== undefined) {
+    if (body.assigneeId === null || body.assigneeId === "") {
+      data.assigneeId = null;
+    } else {
+      data.assigneeId = String(body.assigneeId);
+    }
+  }
+
+  if (body.position !== undefined) {
+    const n = Number(body.position);
+    if (Number.isFinite(n)) data.position = Math.floor(n);
+  }
+
+  return data;
+}
 
 export async function GET(
   request: Request,
@@ -66,7 +173,7 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
+    const rawBody = (await request.json()) as Record<string, unknown>;
 
     // Verify access
     const existing = await prisma.task.findFirst({
@@ -80,14 +187,27 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Handle status change to COMPLETED
-    const updateData: Record<string, unknown> = { ...body };
-    if (body.status === "COMPLETED" && existing.status !== "COMPLETED") {
-      updateData.completedAt = new Date();
-      updateData.progress = 100;
+    const updateData = buildTaskUpdateData(rawBody);
+
+    if (typeof rawBody.status === "string") {
+      if (
+        rawBody.status === "COMPLETED" &&
+        existing.status !== "COMPLETED"
+      ) {
+        updateData.completedAt = new Date();
+        if (updateData.progress === undefined) {
+          updateData.progress = 100;
+        }
+      } else if (rawBody.status !== "COMPLETED") {
+        updateData.completedAt = null;
+      }
     }
-    if (body.status && body.status !== "COMPLETED") {
-      updateData.completedAt = null;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 },
+      );
     }
 
     const task = await prisma.task.update({
@@ -110,7 +230,7 @@ export async function PATCH(
           entityType: "TASK",
           entityId: id,
           action: "UPDATED",
-          details: body,
+          details: JSON.parse(JSON.stringify(rawBody)) as Prisma.InputJsonValue,
         },
       });
     }

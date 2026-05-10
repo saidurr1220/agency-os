@@ -154,7 +154,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   projectId?: string;
-  companyId: string;
+  companyId?: string | null;
   assigneeId?: string;
   creatorId: string;
   dueDate?: Date;

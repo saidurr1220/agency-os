@@ -1,36 +1,56 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { motion } from 'framer-motion';
-import { Calendar, Clock, Tag, X, Plus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useState } from "react";
+import { useForm, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { motion } from "framer-motion";
+import { Calendar, Clock, Tag, X, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { Task, TaskStatus, TaskPriority, Tag as TagType } from '@/types';
+} from "@/components/ui/select";
+import type { Task, TaskStatus, TaskPriority, Tag as TagType } from "@/types";
 
 const taskSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(200),
+  title: z.string().min(1, "Title is required").max(200),
   description: z.string().max(2000).optional(),
-  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'ON_HOLD']),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+  status: z.enum(["TODO", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD"]),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   dueDate: z.string().optional(),
   startDate: z.string().optional(),
-  estimatedMinutes: z.number().min(0).optional(),
+  estimatedMinutes: z.preprocess(
+    (v) => {
+      if (v === "" || v == null) return undefined;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    },
+    z.number().min(0).optional(),
+  ),
   category: z.string().optional(),
-  progress: z.number().min(0).max(100).optional(),
+  progress: z.preprocess(
+    (v) => {
+      if (v === "" || v == null) return 0;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    },
+    z.number().min(0).max(100),
+  ),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -45,7 +65,7 @@ interface TaskFormProps {
 
 export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [tagInput, setTagInput] = useState("");
 
   const {
     register,
@@ -55,19 +75,57 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormData>({
-    resolver: zodResolver(taskSchema),
+    resolver: zodResolver(taskSchema) as Resolver<TaskFormData>,
     defaultValues: {
-      title: task?.title || '',
-      description: task?.description || '',
-      status: task?.status || 'TODO',
-      priority: task?.priority || 'MEDIUM',
-      dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-      startDate: task?.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
-      estimatedMinutes: task?.estimatedMinutes || undefined,
-      category: task?.category || '',
-      progress: task?.progress || 0,
+      title: "",
+      description: "",
+      status: "TODO",
+      priority: "MEDIUM",
+      dueDate: "",
+      startDate: "",
+      estimatedMinutes: undefined,
+      category: "",
+      progress: 0,
     },
   });
+
+  useEffect(() => {
+    if (!open) return;
+    if (!task) {
+      reset({
+        title: "",
+        description: "",
+        status: "TODO",
+        priority: "MEDIUM",
+        dueDate: "",
+        startDate: "",
+        estimatedMinutes: undefined,
+        category: "",
+        progress: 0,
+      });
+      setTags([]);
+      return;
+    }
+    reset({
+      title: task.title ?? "",
+      description: task.description ?? "",
+      status: task.status ?? "TODO",
+      priority: task.priority ?? "MEDIUM",
+      dueDate: task.dueDate
+        ? new Date(task.dueDate).toISOString().split("T")[0]
+        : "",
+      startDate: task.startDate
+        ? new Date(task.startDate).toISOString().split("T")[0]
+        : "",
+      estimatedMinutes:
+        task.estimatedMinutes != null ? task.estimatedMinutes : undefined,
+      category: task.category ?? "",
+      progress: task.progress ?? 0,
+    });
+    setTags(
+      Array.isArray(task.tags) ? task.tags.map((x) => x.name) : [],
+    );
+  }, [open, task, reset]);
 
   const handleFormSubmit = async (data: TaskFormData) => {
     const result = await onSubmit(data);
@@ -79,7 +137,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
-      setTagInput('');
+      setTagInput("");
     }
   };
 
@@ -91,7 +149,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{task ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+          <DialogTitle>{task ? "Edit Task" : "Create New Task"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -99,8 +157,8 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
             <Input
               id="title"
               placeholder="Enter task title..."
-              {...register('title')}
-              className={errors.title ? 'border-red-500' : ''}
+              {...register("title")}
+              className={errors.title ? "border-red-500" : ""}
             />
             {errors.title && (
               <p className="text-xs text-red-500">{errors.title.message}</p>
@@ -112,7 +170,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
             <Textarea
               id="description"
               placeholder="Enter task description..."
-              {...register('description')}
+              {...register("description")}
               rows={3}
             />
           </div>
@@ -121,8 +179,13 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
             <div className="space-y-2">
               <Label>Status</Label>
               <Select
-                defaultValue={task?.status || 'TODO'}
-                onValueChange={(value) => setValue('status', value as TaskStatus)}
+                value={watch("status") || "TODO"}
+                onValueChange={(value) =>
+                  setValue("status", value as TaskStatus, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -140,8 +203,13 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select
-                defaultValue={task?.priority || 'MEDIUM'}
-                onValueChange={(value) => setValue('priority', value as TaskPriority)}
+                value={watch("priority") || "MEDIUM"}
+                onValueChange={(value) =>
+                  setValue("priority", value as TaskPriority, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select priority" />
@@ -164,7 +232,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
                 <Input
                   id="startDate"
                   type="date"
-                  {...register('startDate')}
+                  {...register("startDate")}
                   className="pl-9"
                 />
               </div>
@@ -177,7 +245,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
                 <Input
                   id="dueDate"
                   type="date"
-                  {...register('dueDate')}
+                  {...register("dueDate")}
                   className="pl-9"
                 />
               </div>
@@ -193,7 +261,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
                   id="estimatedMinutes"
                   type="number"
                   placeholder="60"
-                  {...register('estimatedMinutes', { valueAsNumber: true })}
+                  {...register("estimatedMinutes")}
                   className="pl-9"
                 />
               </div>
@@ -204,7 +272,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
               <Input
                 id="category"
                 placeholder="e.g., Development"
-                {...register('category')}
+                {...register("category")}
               />
             </div>
           </div>
@@ -216,9 +284,16 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 placeholder="Add tag..."
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && (e.preventDefault(), addTag())
+                }
               />
-              <Button type="button" variant="outline" size="icon" onClick={addTag}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={addTag}
+              >
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -245,7 +320,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {task ? 'Update Task' : 'Create Task'}
+              {task ? "Update Task" : "Create Task"}
             </Button>
           </DialogFooter>
         </form>

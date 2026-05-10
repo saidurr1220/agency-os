@@ -30,7 +30,7 @@ interface AppState {
   // Task actions (API-backed)
   fetchTasks: () => Promise<void>;
   addTask: (task: Partial<Task>) => Promise<Task | null>;
-  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
   moveTask: (id: string, status: TaskStatus) => Promise<void>;
   clearTasksError: () => void;
@@ -140,6 +140,7 @@ export const useAppStore = create<AppState>()(
       clearTasksError: () => set({ tasksError: null }),
 
       updateTask: async (id, updates) => {
+        set({ tasksError: null });
         try {
           const res = await fetch(`/api/tasks/${id}`, {
             method: "PATCH",
@@ -154,11 +155,23 @@ export const useAppStore = create<AppState>()(
               tasks: state.tasks.map((t) => (t.id === id ? data.task : t)),
               selectedTask:
                 state.selectedTask?.id === id ? data.task : state.selectedTask,
+              tasksError: null,
             }));
+            return true;
           }
+          let msg = `Could not update task (${res.status})`;
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (body.error) msg = body.error;
+          } catch {
+            /* ignore */
+          }
+          set({ tasksError: msg });
         } catch {
           console.error("Failed to update task");
+          set({ tasksError: "Network error while updating task." });
         }
+        return false;
       },
 
       deleteTask: async (id) => {
