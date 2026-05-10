@@ -14,6 +14,21 @@ type PriorityGroupRow = {
   _count: { _all: number };
 };
 
+/** Matches `journal.findMany({ select: { productivityScore, date } })` */
+type JournalWeekRow = {
+  productivityScore: number | null;
+  date: Date;
+};
+
+/** Matches task `findMany` select used for daily buckets / productivity trend */
+type TaskRangeRow = {
+  status: TaskStatus;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  actualMinutes: number | null;
+};
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -194,7 +209,7 @@ export async function GET(request: Request) {
     const dayKey = (t: Date) =>
       startOfDay(t).getTime();
 
-    for (const t of tasksForRange) {
+    for (const t of tasksForRange as TaskRangeRow[]) {
       if (t.completedAt && t.status === "COMPLETED") {
         const k = dayKey(t.completedAt);
         const bucket = dailyBuckets.find(
@@ -289,7 +304,7 @@ export async function GET(request: Request) {
       totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     const journalScores = journalsWeek
-      .map((j) => j.productivityScore)
+      .map((j: JournalWeekRow) => j.productivityScore)
       .filter(
         (s: number | null | undefined): s is number =>
           s != null && !Number.isNaN(s),
@@ -303,7 +318,7 @@ export async function GET(request: Request) {
         : productivityScore;
 
     const productivityTrend = dailyBuckets.map((b) => {
-      const dayTasks = tasksForRange.filter((t) => {
+      const dayTasks = (tasksForRange as TaskRangeRow[]).filter((t: TaskRangeRow) => {
         if (t.status !== "COMPLETED" || !t.completedAt) return false;
         return dayKey(t.completedAt) === dayKey(b.dayStart);
       }).length;
