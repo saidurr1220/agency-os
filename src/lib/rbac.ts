@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import type { CompanyRole, SystemRole } from "@prisma/client";
+import type { CompanyRole, Prisma, SystemRole } from "@prisma/client";
 import { ORG_MANAGEMENT_ROLES } from "@/config/org-roles";
 
 export interface AuthUser {
@@ -43,19 +43,32 @@ export function isSuperAdmin(user: AuthUser): boolean {
 }
 
 /**
- * Prisma `where` fragment for tasks the user may list or mutate.
- * Platform super-admins without a `companyId` are not scoped (see routes for `take` limits).
+ * Tasks visible to this user: company scope, plus personal rows (`companyId` null) they created.
+ * Platform super-admins without a company see all tasks (routes should still `take` a limit).
  */
-export function taskVisibilityScope(
-  user: AuthUser,
-): { companyId: string } | { creatorId: string } | Record<string, never> {
+export function taskVisibilityScope(user: AuthUser): Prisma.TaskWhereInput {
   if (isSuperAdmin(user) && !user.companyId) {
     return {};
   }
   if (user.companyId) {
-    return { companyId: user.companyId };
+    return {
+      OR: [
+        { companyId: user.companyId },
+        { creatorId: user.id, companyId: null },
+      ],
+    };
   }
-  return { creatorId: user.id };
+  return { creatorId: user.id, companyId: null };
+}
+
+/** Tasks assigned to `assigneeId` within the user's visibility scope. */
+export function taskVisibilityScopeForAssignee(
+  user: AuthUser,
+  assigneeId: string,
+): Prisma.TaskWhereInput {
+  return {
+    AND: [taskVisibilityScope(user), { assigneeId }],
+  };
 }
 
 export function isCompanyAdmin(user: AuthUser): boolean {

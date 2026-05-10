@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { mailFireAndForget, sendInvitationEmail } from "@/lib/notify-email";
+import {
+  mailFireAndForget,
+  notifyUserAppEmail,
+  sendInvitationEmail,
+} from "@/lib/notify-email";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
@@ -84,6 +88,33 @@ export async function POST(request: Request) {
           invitedByName: currentUser.name,
         }),
       );
+      const existingInvitee = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (existingInvitee) {
+        await prisma.notification.create({
+          data: {
+            userId: existingInvitee.id,
+            type: "WORKSPACE_INVITE",
+            title: `Invitation to ${companyName}`,
+            message: `${currentUser.name} reminded you to join as ${existingInvite.role}. Code: ${existingInvite.code}`,
+            data: {
+              invitationCode: existingInvite.code,
+              companyId: currentUser.companyId,
+            },
+            isRead: false,
+          },
+        });
+        mailFireAndForget(
+          notifyUserAppEmail(
+            existingInvitee.id,
+            `Invitation to ${companyName}`,
+            `${currentUser.name} sent another invite on AgencyOS. Join team with code ${existingInvite.code}.`,
+            "/join",
+          ),
+        );
+      }
       return NextResponse.json({
         success: true,
         code: existingInvite.code,
@@ -122,6 +153,32 @@ export async function POST(request: Request) {
     });
 
     const companyName = currentUser.companyRef?.name || "your organization";
+
+    const invitee = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (invitee) {
+      await prisma.notification.create({
+        data: {
+          userId: invitee.id,
+          type: "WORKSPACE_INVITE",
+          title: `Invitation to ${companyName}`,
+          message: `${currentUser.name} invited you to join as ${invitation.role}. Code: ${code}`,
+          data: { invitationCode: code, companyId: currentUser.companyId },
+          isRead: false,
+        },
+      });
+      mailFireAndForget(
+        notifyUserAppEmail(
+          invitee.id,
+          `You're invited to ${companyName}`,
+          `${currentUser.name} invited you on AgencyOS. Open Join team with code ${code}.`,
+          "/join",
+        ),
+      );
+    }
+
     mailFireAndForget(
       sendInvitationEmail({
         to: email,

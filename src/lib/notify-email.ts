@@ -51,16 +51,18 @@ export async function sendInvitationEmail(params: {
   invitedByName: string;
 }): Promise<void> {
   const base = getPublicBaseUrl();
-  const joinUrl = `${base}/register?invite=${encodeURIComponent(params.code)}`;
+  const registerUrl = `${base}/register?invite=${encodeURIComponent(params.code)}`;
+  const joinExistingUrl = `${base}/join?invite=${encodeURIComponent(params.code)}`;
   const html = `
     <p>Hi,</p>
     <p><strong>${esc(params.invitedByName)}</strong> invited you to join <strong>${esc(params.companyName)}</strong> on AgencyOS as <strong>${esc(params.role)}</strong>.</p>
     <p><strong>Invitation code:</strong> ${esc(params.code)}</p>
     <p>This code expires on ${esc(params.expiresAt.toLocaleString())}.</p>
-    <p><a href="${joinUrl}">Accept invitation — create your account</a></p>
+    <p><a href="${registerUrl}">New to AgencyOS — create your account</a></p>
+    <p><a href="${joinExistingUrl}">Already registered — sign in and accept</a></p>
     <p style="color:#666;font-size:12px">If you did not expect this email, you can ignore it.</p>
   `;
-  const text = `${params.invitedByName} invited you to ${params.companyName} on AgencyOS.\nCode: ${params.code}\nJoin: ${joinUrl}\nExpires: ${params.expiresAt.toISOString()}`;
+  const text = `${params.invitedByName} invited you to ${params.companyName} on AgencyOS.\nCode: ${params.code}\nRegister: ${registerUrl}\nAlready have an account: ${joinExistingUrl}\nExpires: ${params.expiresAt.toISOString()}`;
   await sendMail({
     to: params.to,
     subject: `You're invited to ${params.companyName} on AgencyOS`,

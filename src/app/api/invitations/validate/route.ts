@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { code } = body;
+    const code =
+      typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
 
     if (!code) {
       return NextResponse.json(

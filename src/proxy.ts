@@ -6,6 +6,7 @@ const publicRoutes = [
   "/",
   "/login",
   "/register",
+  "/join",
   "/forgot-password",
   "/reset-password",
 ];

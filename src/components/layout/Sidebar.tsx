@@ -23,6 +23,7 @@ import {
   Building2,
   FolderKanban,
   Shield,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -163,6 +164,37 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {!user?.companyId && (
+            <Link
+              href="/join"
+              className={cn(
+                "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer group relative",
+                pathname.startsWith("/join")
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <UserPlus
+                className={cn(
+                  "w-5 h-5 shrink-0",
+                  pathname.startsWith("/join") && "text-primary",
+                )}
+              />
+              <AnimatePresence>
+                {!sidebarCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    className="ml-3 whitespace-nowrap overflow-hidden"
+                  >
+                    Join team
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Link>
+          )}
 
           {user?.systemRole === "SUPER_ADMIN" && (
             <Link

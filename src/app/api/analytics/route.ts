@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import type { TaskPriority, TaskStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/rbac";
+import {
+  getAuthUser,
+  taskVisibilityScope,
+  taskVisibilityScopeForAssignee,
+} from "@/lib/rbac";
 
 /** Prisma `groupBy` row shape when counting by status/priority */
 type StatusGroupRow = {
@@ -52,13 +57,11 @@ export async function GET(request: Request) {
     const monthStart = new Date(todayStart);
     monthStart.setDate(monthStart.getDate() - 30);
 
-    const companyWhere = user.companyId
-      ? { companyId: user.companyId }
-      : { creatorId: user.id };
-
-    const myWhere = user.companyId
-      ? { companyId: user.companyId, assigneeId: user.id }
-      : { creatorId: user.id };
+    const companyWhere: Prisma.TaskWhereInput = taskVisibilityScope(user);
+    const myWhere: Prisma.TaskWhereInput = taskVisibilityScopeForAssignee(
+      user,
+      user.id,
+    );
 
     const rangeStart = new Date(todayStart);
     rangeStart.setDate(rangeStart.getDate() - 6);

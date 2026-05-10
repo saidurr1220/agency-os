@@ -1,19 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/rbac";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { code, userId } = body;
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!code || !userId) {
+    const body = (await request.json()) as { code?: string };
+    const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+
+    if (!code) {
       return NextResponse.json(
-        { error: "Invitation code and user ID are required" },
+        { error: "Invitation code is required" },
         { status: 400 }
       );
     }
 
-    // Find the invitation
     const invitation = await prisma.invitation.findUnique({
       where: { code },
     });
@@ -36,8 +41,51 @@ export async function POST(request: Request) {
       );
     }
 
+    if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
+      return NextResponse.json(
+        {
+          error: `This invitation was sent to ${invitation.email}. Sign in with that account.`,
+        },
+        { status: 403 }
+      );
+    }
+
+    if (
+      user.companyId &&
+      user.companyId !== invitation.companyId
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "You're already part of another organization. Leave it before accepting a new invite.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingMember = await prisma.companyMember.findUnique({
+      where: {
+        companyId_userId: {
+          companyId: invitation.companyId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (existingMember) {
+      await prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: "ACCEPTED" },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "You're already a member of this team",
+        companyId: invitation.companyId,
+      });
+    }
+
     await prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
         companyId: invitation.companyId,
         companyRole: invitation.role,
@@ -47,7 +95,7 @@ export async function POST(request: Request) {
     await prisma.companyMember.create({
       data: {
         companyId: invitation.companyId,
-        userId: userId,
+        userId: user.id,
         role: invitation.role,
       },
     });

@@ -411,7 +411,8 @@ model Task {
   status            TaskStatus     @default(TODO)
   priority          TaskPriority   @default(MEDIUM)
   projectId         String?
-  companyId         String
+  /// Null = personal task (user has no company or task created before joining a team)
+  companyId         String?
   assigneeId        String?
   creatorId         String
   dueDate           DateTime?
@@ -430,7 +431,7 @@ model Task {
   logs              TaskLog[]
   tags              TaskTag[]
   assignee          User?          @relation("tasks_assigneeIdTousers", fields: [assigneeId], references: [id])
-  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company           Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   creator           User           @relation("tasks_creatorIdTousers", fields: [creatorId], references: [id], onDelete: Cascade)
   project           Project?       @relation(fields: [projectId], references: [id])
 

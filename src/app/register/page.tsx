@@ -114,6 +114,7 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
   const [companyError, setCompanyError] = useState<string | null>(null);
+  const [teamError, setTeamError] = useState<string | null>(null);
   const [regType, setRegType] = useState<RegistrationType>(() => {
     const invite = searchParams.get("invite");
     if (invite) return "team-member";
@@ -191,30 +192,65 @@ function RegisterContent() {
 
   const onTeamSubmit = async (data: TeamMemberFormData) => {
     clearError();
+    setTeamError(null);
     try {
       const inviteRes = await fetch("/api/invitations/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: data.inviteCode }),
+        body: JSON.stringify({
+          code: data.inviteCode.trim().toUpperCase(),
+        }),
       });
 
-      if (!inviteRes.ok) return;
+      const invitePayload = await inviteRes.json().catch(() => ({}));
+      if (!inviteRes.ok) {
+        setTeamError(
+          typeof invitePayload.error === "string"
+            ? invitePayload.error
+            : "Invalid or expired invitation code",
+        );
+        return;
+      }
+
+      const invitedEmail =
+        typeof invitePayload.email === "string"
+          ? invitePayload.email.toLowerCase()
+          : "";
+      if (
+        invitedEmail &&
+        data.email.trim().toLowerCase() !== invitedEmail
+      ) {
+        setTeamError(
+          `This invitation was sent to ${invitedEmail}. Register with that email address.`,
+        );
+        return;
+      }
 
       await registerUser(data.name, data.email, data.password);
       const state = useAuthStore.getState();
       if (state.isAuthenticated) {
-        await fetch("/api/invitations/accept", {
+        const acceptRes = await fetch("/api/invitations/accept", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
-            code: data.inviteCode,
-            userId: state.user?.id,
+            code: data.inviteCode.trim().toUpperCase(),
           }),
         });
+        const acceptPayload = await acceptRes.json().catch(() => ({}));
+        if (!acceptRes.ok) {
+          setTeamError(
+            typeof acceptPayload.error === "string"
+              ? acceptPayload.error
+              : "Could not join the team. Try Join team from your dashboard.",
+          );
+          return;
+        }
+        await state.fetchSession();
         router.push("/dashboard");
       }
     } catch {
-      // Error handled
+      setTeamError("Registration failed. Please try again.");
     }
   };
 
@@ -583,6 +619,11 @@ function RegisterContent() {
                   onSubmit={teamForm.handleSubmit(onTeamSubmit)}
                   className="space-y-4"
                 >
+                  {teamError && (
+                    <p className="text-sm text-red-600 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/30 px-3 py-2">
+                      {teamError}
+                    </p>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="inviteCode">Invitation Code</Label>
                     <div className="relative">

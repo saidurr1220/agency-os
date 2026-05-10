@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/rbac";
+import type { Prisma } from "@prisma/client";
+import {
+  getAuthUser,
+  taskVisibilityScope,
+  taskVisibilityScopeForAssignee,
+} from "@/lib/rbac";
 
 export async function GET(request: Request) {
   try {
@@ -14,14 +19,11 @@ export async function GET(request: Request) {
     const weekStart = new Date(todayStart);
     weekStart.setDate(weekStart.getDate() - 7);
 
-    // Build where clause based on user context
-    const companyWhere = user.companyId
-      ? { companyId: user.companyId }
-      : { creatorId: user.id };
-
-    const myWhere = user.companyId
-      ? { companyId: user.companyId, assigneeId: user.id }
-      : { creatorId: user.id };
+    const companyWhere: Prisma.TaskWhereInput = taskVisibilityScope(user);
+    const myWhere: Prisma.TaskWhereInput = taskVisibilityScopeForAssignee(
+      user,
+      user.id,
+    );
 
     // Fetch stats in parallel
     const [

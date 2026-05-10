@@ -42,7 +42,12 @@ function LoginContent() {
     await login(data.email, data.password);
     const state = useAuthStore.getState();
     if (state.isAuthenticated) {
-      router.push("/dashboard");
+      const rawNext = searchParams.get("next");
+      const next =
+        rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+          ? rawNext
+          : "/dashboard";
+      router.push(next);
     }
   };
 

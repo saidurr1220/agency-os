@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, isSuperAdmin, taskVisibilityScope } from "@/lib/rbac";
+import type { Prisma } from "@prisma/client";
+import { getAuthUser, taskVisibilityScope } from "@/lib/rbac";
 import { mailFireAndForget, notifyUserAppEmail } from "@/lib/notify-email";
 
 export async function GET(request: Request) {
@@ -89,37 +90,14 @@ export async function POST(request: Request) {
       );
     }
 
-    let companyId = user.companyId;
-    if (!companyId && isSuperAdmin(user)) {
-      const fallback = await prisma.company.findFirst({
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      });
-      if (!fallback) {
-        return NextResponse.json(
-          {
-            error:
-              "No company exists yet. Register a company first, then create tasks.",
-          },
-          { status: 400 }
-        );
-      }
-      companyId = fallback.id;
-    }
+    const companyId: string | null = user.companyId ?? null;
 
-    if (!companyId) {
-      return NextResponse.json(
-        {
-          error:
-            "You need to belong to a company before creating tasks. Finish company registration or accept an invitation.",
-        },
-        { status: 400 }
-      );
-    }
+    const maxPosWhere: Prisma.TaskWhereInput = companyId
+      ? { companyId }
+      : { creatorId: user.id, companyId: null };
 
-    // Get max position for this company
     const maxPos = await prisma.task.findFirst({
-      where: { companyId },
+      where: maxPosWhere,
       orderBy: { position: "desc" },
       select: { position: true },
     });
