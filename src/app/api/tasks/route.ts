@@ -94,9 +94,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get max position
+    if (!user.companyId) {
+      return NextResponse.json(
+        {
+          error:
+            "You need to belong to a company before creating tasks. Finish company registration or accept an invitation.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get max position (same scope as GET list for this user)
     const maxPos = await prisma.task.findFirst({
-      where: { companyId: user.companyId || undefined },
+      where: { companyId: user.companyId },
       orderBy: { position: "desc" },
       select: { position: true },
     });
@@ -107,7 +117,7 @@ export async function POST(request: Request) {
         description: description || null,
         status: status || "TODO",
         priority: priority || "MEDIUM",
-        companyId: user.companyId || "personal",
+        companyId: user.companyId,
         creatorId: user.id,
         projectId: projectId || null,
         assigneeId: assigneeId || null,

@@ -1,13 +1,17 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { CalendarView } from '@/components/tasks/CalendarView';
 import { useAppStore } from '@/store';
 import type { Task } from '@/types';
 
 export default function CalendarPage() {
-  const { tasks } = useAppStore();
+  const { tasks, fetchTasks } = useAppStore();
+
+  useEffect(() => {
+    void fetchTasks();
+  }, [fetchTasks]);
 
   const handleTaskClick = (task: Task) => {
     // Navigate to task detail or open modal

@@ -75,7 +75,9 @@ export const useAppStore = create<AppState>()(
           if (filters.search) params.set("search", filters.search);
           if (filters.projectId) params.set("projectId", filters.projectId);
 
-          const res = await fetch(`/api/tasks?${params}`);
+          const res = await fetch(`/api/tasks?${params}`, {
+            credentials: "include",
+          });
           if (res.ok) {
             const data = await res.json();
             set({ tasks: data.tasks || [] });
@@ -92,6 +94,7 @@ export const useAppStore = create<AppState>()(
           const res = await fetch("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify(taskData),
           });
 
@@ -112,6 +115,7 @@ export const useAppStore = create<AppState>()(
           const res = await fetch(`/api/tasks/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify(updates),
           });
 
@@ -132,6 +136,7 @@ export const useAppStore = create<AppState>()(
         try {
           const res = await fetch(`/api/tasks/${id}`, {
             method: "DELETE",
+            credentials: "include",
           });
 
           if (res.ok) {

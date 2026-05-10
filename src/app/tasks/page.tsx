@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -32,13 +32,17 @@ import { useAppStore } from '@/store';
 import type { Task, TaskStatus, TaskPriority, ViewType } from '@/types';
 
 export default function TasksPage() {
-  const { tasks, addTask, updateTask, moveTask } = useAppStore();
+  const { tasks, addTask, updateTask, moveTask, fetchTasks } = useAppStore();
   const [view, setView] = useState<ViewType>('LIST');
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'ALL'>('ALL');
+
+  useEffect(() => {
+    void fetchTasks();
+  }, [fetchTasks]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
