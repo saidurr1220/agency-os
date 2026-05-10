@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,12 @@ import { useAuthStore } from "@/store";
 function JoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated, fetchSession, isLoading: authLoading } =
-    useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    fetchSession,
+    isLoading: authLoading,
+  } = useAuthStore();
   const [code, setCode] = useState(
     () => searchParams.get("invite")?.trim().toUpperCase() || "",
   );
@@ -108,6 +112,19 @@ function JoinContent() {
             <Button variant="outline" asChild className="w-full">
               <Link href="/register">Create an account</Link>
             </Button>
+            <Button
+              variant="ghost"
+              asChild
+              className="w-full text-muted-foreground"
+            >
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                Back to home
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -196,6 +213,22 @@ function JoinContent() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           )}
+
+          <div className="pt-2 border-t border-border/50">
+            <Button
+              variant="ghost"
+              asChild
+              className="w-full text-muted-foreground"
+            >
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4 shrink-0" />
+                Back to dashboard
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

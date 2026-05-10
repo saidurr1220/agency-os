@@ -216,10 +216,7 @@ function RegisterContent() {
         typeof invitePayload.email === "string"
           ? invitePayload.email.toLowerCase()
           : "";
-      if (
-        invitedEmail &&
-        data.email.trim().toLowerCase() !== invitedEmail
-      ) {
+      if (invitedEmail && data.email.trim().toLowerCase() !== invitedEmail) {
         setTeamError(
           `This invitation was sent to ${invitedEmail}. Register with that email address.`,
         );

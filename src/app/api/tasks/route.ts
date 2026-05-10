@@ -163,7 +163,20 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: unknown }).code)
+        : undefined;
     console.error("Tasks POST error:", error);
+    if (code === "P2011") {
+      return NextResponse.json(
+        {
+          error:
+            "Task could not be saved (database null constraint). If you use tasks without a company, ensure `tasks.companyId` is nullable — run `npx prisma db push` or apply the migration that drops NOT NULL on that column.",
+        },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       { error: "Failed to create task" },
       { status: 500 }

@@ -34,23 +34,17 @@ const taskSchema = z.object({
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   dueDate: z.string().optional(),
   startDate: z.string().optional(),
-  estimatedMinutes: z.preprocess(
-    (v) => {
-      if (v === "" || v == null) return undefined;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : undefined;
-    },
-    z.number().min(0).optional(),
-  ),
+  estimatedMinutes: z.preprocess((v) => {
+    if (v === "" || v == null) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  }, z.number().min(0).optional()),
   category: z.string().optional(),
-  progress: z.preprocess(
-    (v) => {
-      if (v === "" || v == null) return 0;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    },
-    z.number().min(0).max(100),
-  ),
+  progress: z.preprocess((v) => {
+    if (v === "" || v == null) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }, z.number().min(0).max(100)),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -122,9 +116,7 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
       category: task.category ?? "",
       progress: task.progress ?? 0,
     });
-    setTags(
-      Array.isArray(task.tags) ? task.tags.map((x) => x.name) : [],
-    );
+    setTags(Array.isArray(task.tags) ? task.tags.map((x) => x.name) : []);
   }, [open, task, reset]);
 
   const handleFormSubmit = async (data: TaskFormData) => {

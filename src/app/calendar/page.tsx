@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { AppShell } from '@/components/layout/AppShell';
-import { CalendarView } from '@/components/tasks/CalendarView';
-import { useAppStore } from '@/store';
-import type { Task } from '@/types';
+import React, { useEffect } from "react";
+import { AppShell } from "@/components/layout/AppShell";
+import { CalendarView } from "@/components/tasks/CalendarView";
+import { useAppStore } from "@/store";
+import type { Task } from "@/types";
 
 export default function CalendarPage() {
   const { tasks, fetchTasks } = useAppStore();
@@ -15,12 +15,12 @@ export default function CalendarPage() {
 
   const handleTaskClick = (task: Task) => {
     // Navigate to task detail or open modal
-    console.log('Task clicked:', task);
+    console.log("Task clicked:", task);
   };
 
   const handleDateClick = (date: Date) => {
     // Open new task form for this date
-    console.log('Date clicked:', date);
+    console.log("Date clicked:", date);
   };
 
   return (
