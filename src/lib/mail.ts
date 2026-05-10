@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { normalizeAuthBaseUrl } from "@/lib/normalize-auth-url";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -13,7 +14,7 @@ export function getPublicBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
 
-  const authUrl = process.env.BETTER_AUTH_URL?.trim();
+  const authUrl = normalizeAuthBaseUrl(process.env.BETTER_AUTH_URL);
   if (authUrl) return authUrl.replace(/\/$/, "");
 
   if (process.env.VERCEL_URL)

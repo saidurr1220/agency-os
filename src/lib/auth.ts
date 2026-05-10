@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mail";
+import { normalizeAuthBaseUrl } from "@/lib/normalize-auth-url";
 
 /** Trust localhost ↔ 127.0.0.1 interchangeably so dev works regardless of which loopback host is in BETTER_AUTH_URL. */
 function loopbackTrustedOrigins(baseUrl: string): string[] {
@@ -26,14 +27,17 @@ function developmentLoopbackOrigins(): string[] {
   return [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
 }
 
+const serverAuthBaseUrl =
+  normalizeAuthBaseUrl(process.env.BETTER_AUTH_URL) ?? "http://localhost:3000";
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: process.env.BETTER_AUTH_URL!,
+  baseURL: serverAuthBaseUrl,
   trustedOrigins: [
-    ...loopbackTrustedOrigins(process.env.BETTER_AUTH_URL || "http://localhost:3000"),
+    ...loopbackTrustedOrigins(serverAuthBaseUrl),
     ...developmentLoopbackOrigins(),
   ],
   emailAndPassword: {
