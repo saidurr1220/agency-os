@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/rbac";
+import { getAuthUser, isSuperAdmin, taskVisibilityScope } from "@/lib/rbac";
 import { mailFireAndForget, notifyUserAppEmail } from "@/lib/notify-email";
 
 export async function GET(request: Request) {
@@ -17,14 +17,9 @@ export async function GET(request: Request) {
     const projectId = searchParams.get("projectId");
     const view = searchParams.get("view"); // "my" for assigned to me
 
-    const where: Record<string, unknown> = {};
-
-    // Scope by company if user has one, otherwise show personal tasks
-    if (user.companyId) {
-      where.companyId = user.companyId;
-    } else {
-      where.creatorId = user.id;
-    }
+    const where: Record<string, unknown> = {
+      ...taskVisibilityScope(user),
+    };
 
     if (status && status !== "ALL") where.status = status;
     if (priority && priority !== "ALL") where.priority = priority;
@@ -94,7 +89,25 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!user.companyId) {
+    let companyId = user.companyId;
+    if (!companyId && isSuperAdmin(user)) {
+      const fallback = await prisma.company.findFirst({
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (!fallback) {
+        return NextResponse.json(
+          {
+            error:
+              "No company exists yet. Register a company first, then create tasks.",
+          },
+          { status: 400 }
+        );
+      }
+      companyId = fallback.id;
+    }
+
+    if (!companyId) {
       return NextResponse.json(
         {
           error:
@@ -104,9 +117,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get max position (same scope as GET list for this user)
+    // Get max position for this company
     const maxPos = await prisma.task.findFirst({
-      where: { companyId: user.companyId },
+      where: { companyId },
       orderBy: { position: "desc" },
       select: { position: true },
     });
@@ -117,7 +130,7 @@ export async function POST(request: Request) {
         description: description || null,
         status: status || "TODO",
         priority: priority || "MEDIUM",
-        companyId: user.companyId,
+        companyId,
         creatorId: user.id,
         projectId: projectId || null,
         assigneeId: assigneeId || null,
@@ -156,12 +169,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Activity log
-    if (user.companyId) {
+    // Activity log (use task company; super-admin may not have user.companyId)
+    if (companyId) {
       await prisma.activityLog.create({
         data: {
           userId: user.id,
-          companyId: user.companyId,
+          companyId,
           entityType: "TASK",
           entityId: task.id,
           action: "CREATED",

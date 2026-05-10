@@ -24,6 +24,8 @@ interface AppState {
   filters: TaskFilters;
   isLoading: boolean;
   sidebarCollapsed: boolean;
+  /** Last API error for task list/create (cleared on successful fetch). */
+  tasksError: string | null;
 
   // Task actions (API-backed)
   fetchTasks: () => Promise<void>;
@@ -31,6 +33,7 @@ interface AppState {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   moveTask: (id: string, status: TaskStatus) => Promise<void>;
+  clearTasksError: () => void;
 
   // UI actions
   setSelectedTask: (task: Task | null) => void;
@@ -62,11 +65,12 @@ export const useAppStore = create<AppState>()(
       filters: {},
       isLoading: false,
       sidebarCollapsed: false,
+      tasksError: null,
 
       // ─── TASK ACTIONS ─────────────────────────────────────────
 
       fetchTasks: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, tasksError: null });
         try {
           const params = new URLSearchParams();
           const { filters } = get();
@@ -80,16 +84,27 @@ export const useAppStore = create<AppState>()(
           });
           if (res.ok) {
             const data = await res.json();
-            set({ tasks: data.tasks || [] });
+            set({ tasks: data.tasks || [], tasksError: null });
+          } else {
+            let msg = `Could not load tasks (${res.status})`;
+            try {
+              const body = (await res.json()) as { error?: string };
+              if (body.error) msg = body.error;
+            } catch {
+              /* ignore */
+            }
+            set({ tasksError: msg });
           }
         } catch {
           console.error("Failed to fetch tasks");
+          set({ tasksError: "Network error while loading tasks." });
         } finally {
           set({ isLoading: false });
         }
       },
 
       addTask: async (taskData) => {
+        set({ tasksError: null });
         try {
           const res = await fetch("/api/tasks", {
             method: "POST",
@@ -101,14 +116,28 @@ export const useAppStore = create<AppState>()(
           if (res.ok) {
             const data = await res.json();
             const task = data.task;
-            set((state) => ({ tasks: [task, ...state.tasks] }));
+            set((state) => ({
+              tasks: [task, ...state.tasks],
+              tasksError: null,
+            }));
             return task;
           }
+          let msg = `Could not create task (${res.status})`;
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (body.error) msg = body.error;
+          } catch {
+            /* ignore */
+          }
+          set({ tasksError: msg });
         } catch {
           console.error("Failed to create task");
+          set({ tasksError: "Network error while creating task." });
         }
         return null;
       },
+
+      clearTasksError: () => set({ tasksError: null }),
 
       updateTask: async (id, updates) => {
         try {

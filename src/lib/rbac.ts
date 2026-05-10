@@ -42,6 +42,22 @@ export function isSuperAdmin(user: AuthUser): boolean {
   return user.systemRole === "SUPER_ADMIN";
 }
 
+/**
+ * Prisma `where` fragment for tasks the user may list or mutate.
+ * Platform super-admins without a `companyId` are not scoped (see routes for `take` limits).
+ */
+export function taskVisibilityScope(
+  user: AuthUser,
+): { companyId: string } | { creatorId: string } | Record<string, never> {
+  if (isSuperAdmin(user) && !user.companyId) {
+    return {};
+  }
+  if (user.companyId) {
+    return { companyId: user.companyId };
+  }
+  return { creatorId: user.id };
+}
+
 export function isCompanyAdmin(user: AuthUser): boolean {
   return ["CHAIRMAN", "MANAGER", "ADMIN"].includes(user.companyRole);
 }

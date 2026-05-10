@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   LayoutGrid,
@@ -11,34 +11,37 @@ import {
   SortAsc,
   Search,
   X,
-} from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
-import { TaskList } from '@/components/tasks/TaskList';
-import { KanbanBoard } from '@/components/tasks/KanbanBoard';
-import { CalendarView } from '@/components/tasks/CalendarView';
-import { TaskForm } from '@/components/tasks/TaskForm';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { TaskList } from "@/components/tasks/TaskList";
+import { KanbanBoard } from "@/components/tasks/KanbanBoard";
+import { CalendarView } from "@/components/tasks/CalendarView";
+import { TaskForm } from "@/components/tasks/TaskForm";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useAppStore } from '@/store';
-import type { Task, TaskStatus, TaskPriority, ViewType } from '@/types';
+} from "@/components/ui/select";
+import { useAppStore } from "@/store";
+import type { Task, TaskStatus, TaskPriority, ViewType } from "@/types";
 
 export default function TasksPage() {
-  const { tasks, addTask, updateTask, moveTask, fetchTasks } = useAppStore();
-  const [view, setView] = useState<ViewType>('LIST');
+  const { tasks, addTask, updateTask, moveTask, fetchTasks, tasksError, clearTasksError } =
+    useAppStore();
+  const [view, setView] = useState<ViewType>("LIST");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "ALL">("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "ALL">(
+    "ALL",
+  );
 
   useEffect(() => {
     void fetchTasks();
@@ -47,34 +50,33 @@ export default function TasksPage() {
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const matchesSearch =
-        searchQuery === '' ||
+        searchQuery === "" ||
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
-        statusFilter === 'ALL' || task.status === statusFilter;
+        statusFilter === "ALL" || task.status === statusFilter;
 
       const matchesPriority =
-        priorityFilter === 'ALL' || task.priority === priorityFilter;
+        priorityFilter === "ALL" || task.priority === priorityFilter;
 
       return matchesSearch && matchesStatus && matchesPriority;
     });
   }, [tasks, searchQuery, statusFilter, priorityFilter]);
 
-  const handleSubmit = (data: Record<string, unknown>) => {
+  const handleSubmit = async (data: Record<string, unknown>) => {
     if (editingTask) {
-      updateTask(editingTask.id, data as Partial<Task>);
-    } else {
-      addTask({
-        ...data,
-        workspaceId: '1',
-        creatorId: '1',
-        tags: [],
-        progress: 0,
-      } as unknown as Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'position'>);
+      await updateTask(editingTask.id, data as Partial<Task>);
+      return true;
     }
-    setShowForm(false);
-    setEditingTask(null);
+    const created = await addTask({
+      ...data,
+      workspaceId: "1",
+      creatorId: "1",
+      tags: [],
+      progress: 0,
+    } as unknown as Omit<Task, "id" | "createdAt" | "updatedAt" | "position">);
+    return created != null;
   };
 
   const handleStatusChange = (taskId: string, status: TaskStatus) => {
@@ -87,12 +89,29 @@ export default function TasksPage() {
   };
 
   const activeFiltersCount = [statusFilter, priorityFilter].filter(
-    (f) => f !== 'ALL'
+    (f) => f !== "ALL",
   ).length;
 
   return (
     <AppShell>
       <div className="space-y-6">
+        {tasksError && (
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-start justify-between gap-3"
+          >
+            <span>{tasksError}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 text-destructive"
+              onClick={() => clearTasksError()}
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Tasks</h2>
@@ -117,7 +136,7 @@ export default function TasksPage() {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -128,7 +147,7 @@ export default function TasksPage() {
           <div className="flex items-center gap-2">
             <Select
               value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as TaskStatus | 'ALL')}
+              onValueChange={(v) => setStatusFilter(v as TaskStatus | "ALL")}
             >
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Status" />
@@ -145,7 +164,9 @@ export default function TasksPage() {
 
             <Select
               value={priorityFilter}
-              onValueChange={(v) => setPriorityFilter(v as TaskPriority | 'ALL')}
+              onValueChange={(v) =>
+                setPriorityFilter(v as TaskPriority | "ALL")
+              }
             >
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Priority" />
@@ -164,8 +185,8 @@ export default function TasksPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setStatusFilter('ALL');
-                  setPriorityFilter('ALL');
+                  setStatusFilter("ALL");
+                  setPriorityFilter("ALL");
                 }}
               >
                 Clear filters
@@ -178,23 +199,23 @@ export default function TasksPage() {
 
           <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
             <Button
-              variant={view === 'LIST' ? 'default' : 'ghost'}
+              variant={view === "LIST" ? "default" : "ghost"}
               size="icon-sm"
-              onClick={() => setView('LIST')}
+              onClick={() => setView("LIST")}
             >
               <List className="w-4 h-4" />
             </Button>
             <Button
-              variant={view === 'KANBAN' ? 'default' : 'ghost'}
+              variant={view === "KANBAN" ? "default" : "ghost"}
               size="icon-sm"
-              onClick={() => setView('KANBAN')}
+              onClick={() => setView("KANBAN")}
             >
               <LayoutGrid className="w-4 h-4" />
             </Button>
             <Button
-              variant={view === 'CALENDAR' ? 'default' : 'ghost'}
+              variant={view === "CALENDAR" ? "default" : "ghost"}
               size="icon-sm"
-              onClick={() => setView('CALENDAR')}
+              onClick={() => setView("CALENDAR")}
             >
               <Calendar className="w-4 h-4" />
             </Button>
@@ -214,21 +235,21 @@ export default function TasksPage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {view === 'LIST' && (
+            {view === "LIST" && (
               <TaskList
                 tasks={filteredTasks}
                 onStatusChange={handleStatusChange}
                 onTaskClick={handleTaskClick}
               />
             )}
-            {view === 'KANBAN' && (
+            {view === "KANBAN" && (
               <KanbanBoard
                 tasks={filteredTasks}
                 onStatusChange={handleStatusChange}
                 onTaskClick={handleTaskClick}
               />
             )}
-            {view === 'CALENDAR' && (
+            {view === "CALENDAR" && (
               <CalendarView
                 tasks={filteredTasks}
                 onTaskClick={handleTaskClick}

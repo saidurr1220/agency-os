@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/rbac";
+import { getAuthUser, taskVisibilityScope } from "@/lib/rbac";
 import { mailFireAndForget, notifyUserAppEmail } from "@/lib/notify-email";
 
 export async function POST(
@@ -28,7 +28,7 @@ export async function POST(
     const task = await prisma.task.findFirst({
       where: {
         id: taskId,
-        ...(user.companyId ? { companyId: user.companyId } : { creatorId: user.id }),
+        ...taskVisibilityScope(user),
       },
     });
 

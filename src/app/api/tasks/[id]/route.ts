@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/rbac";
+import { getAuthUser, taskVisibilityScope } from "@/lib/rbac";
 
 export async function GET(
   request: Request,
@@ -17,7 +17,7 @@ export async function GET(
     const task = await prisma.task.findFirst({
       where: {
         id,
-        ...(user.companyId ? { companyId: user.companyId } : { creatorId: user.id }),
+        ...taskVisibilityScope(user),
       },
       include: {
         assignee: { select: { id: true, name: true, avatar: true, email: true } },
@@ -72,7 +72,7 @@ export async function PATCH(
     const existing = await prisma.task.findFirst({
       where: {
         id,
-        ...(user.companyId ? { companyId: user.companyId } : { creatorId: user.id }),
+        ...taskVisibilityScope(user),
       },
     });
 
@@ -102,11 +102,11 @@ export async function PATCH(
     });
 
     // Activity log
-    if (user.companyId) {
+    if (existing.companyId) {
       await prisma.activityLog.create({
         data: {
           userId: user.id,
-          companyId: user.companyId,
+          companyId: existing.companyId,
           entityType: "TASK",
           entityId: id,
           action: "UPDATED",
@@ -140,7 +140,7 @@ export async function DELETE(
     const existing = await prisma.task.findFirst({
       where: {
         id,
-        ...(user.companyId ? { companyId: user.companyId } : { creatorId: user.id }),
+        ...taskVisibilityScope(user),
       },
     });
 

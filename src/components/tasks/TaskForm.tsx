@@ -38,7 +38,8 @@ type TaskFormData = z.infer<typeof taskSchema>;
 interface TaskFormProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: TaskFormData) => void;
+  /** Return false to keep the dialog open (e.g. API validation failed). */
+  onSubmit: (data: TaskFormData) => void | Promise<boolean | void>;
   task?: Task | null;
 }
 
@@ -68,8 +69,9 @@ export function TaskForm({ open, onClose, onSubmit, task }: TaskFormProps) {
     },
   });
 
-  const handleFormSubmit = (data: TaskFormData) => {
-    onSubmit(data);
+  const handleFormSubmit = async (data: TaskFormData) => {
+    const result = await onSubmit(data);
+    if (result === false) return;
     reset();
     onClose();
   };
